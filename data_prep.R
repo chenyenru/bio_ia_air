@@ -20,7 +20,16 @@ for (i in 1:length(sheetNames))
 }
 
 # waste_recycled_muni <- gather(` 執行機關資源回收量`, "county", "waste_recycled_muni", -year)
+# 指標項：就業者之行業結構-工業(％) 
+# 定義：從事包括礦業及土石採取業、製造業、水電燃氣業與營造業之就業者占?
+#   `就業 
+# 者之百分比。 
+# 公式：（工業就業人口數／總就業人口數）＊100 
+# 註記：自91年起金門縣於每年5月及11月各辦理1次人力資源抽樣調查；連江縣 
+# 於每年9月辦理1次普查。 
 
+industrial <- read.csv("industrial.csv")
+industrial <- gather(industrial, "county", "industrial", -year)
 waste_treatment <- gather(` 一般廢棄物妥善處理率`, "county", "waste_treatment", -year)
 so2 <- gather(` 二氧化硫含量`, "county", "so2", -year)
 ozone <- gather(` 空氣中臭氧濃度`, "county", "ozone", -year)
@@ -34,9 +43,9 @@ temp3 <- merge(temp2, pm_total, by = c(1, 2))
 View(temp3)
 temp4 <- merge(temp3, pm2.5, by = c(1, 2))
 temp5 <- merge(temp4, lung_rate, by = c(1, 2))
-
-View(temp5)
-temp5 %>% summarise_all(funs(class))
+temp6 <- merge(temp5, industrial, by = c(1, 2))
+View(temp6)
+temp6 %>% summarise_all(funs(class))
 
 library(imputeTS)
 library(zoo)
@@ -48,7 +57,7 @@ library(zoo)
 # temp5 <- na_interpolation(temp5)
 # # final <- na.interpolation(temp5, option = "linear")
 
-write.csv(temp5, "data.csv")
+write.csv(temp6, "data.csv")
 
 
 
