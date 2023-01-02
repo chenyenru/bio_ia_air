@@ -19,42 +19,42 @@ for (i in 1:length(sheetNames))
     assign(sheetNames[i], readWorkbook(a, sheet = i))
 }
 
-# waste_recycled_muni <- gather(` 執行機關資源回收量`, "county", "waste_recycled_muni", -year)
-# 指標項：就業者之行業結構-工業(％)
-# 定義：從事包括礦業及土石採取業、製造業、水電燃氣業與營造業之就業者占?
-#   `就業
-# 者之百分比。
-# 公式：（工業就業人口數／總就業人口數）＊100
-# 註記：自91年起金門縣於每年5月及11月各辦理1次人力資源抽樣調查；連江縣
-# 於每年9月辦理1次普查。
-
 factory_density <- read.csv("~/Documents/GitHub/School/bio_ia_air/DATA/raw_data/factory_density.csv")
 factory_density <- gather(factory_density, "county/city", "Factory Density (Factory Count Per Squared Kilometer)", -year)
-# waste_treatment <- gather(` 一般廢棄物妥善處理率`, "county", "waste_treatment", -year)
-# so2 <- gather(` 二氧化硫含量`, "county", "so2", -year)
 ozone <- gather(read.csv("~/Documents/GitHub/School/bio_ia_air/DATA/raw_data/ozone.csv"), "county/city", "Annual Average Ozone Concentration (ppb)", -year)
-# pm_total <- gather(` 空氣中總懸浮微粒濃度`, "county", "pm_total", -year)
-# pm2.5 <- gather(` 細懸浮微粒手動監測(PM2.5)濃度值`, "county", "pm2.5", -year)
-lung_cancer <- lung_cancer_all
-colnames(lung_cancer) <- c("year", "sex", "county", "cancer_type", "Age-Adjusted Lung Cancer (per 100,000 population) ", " ", " ", " ", " ")
-# lung_cancer <- subset(lung_cancer, !(county/city %in% c("澎湖縣", "金門縣", "連江縣", "全國")))
-lung_cancer <- subset(lung_cancer, sex %in% c("全"))
-# lung_cancer <- subset(lung_cancer, year >= 2010)
-# lung_cancer <- subset(lung_cancer, year <= 2020)
-lung_cancer <- subset(lung_cancer, cancer_type %in% c("肺、支氣管及氣管"))
 
+# Lung Cancer
+lung_cancer <- cancer
+colnames(lung_cancer) <- c("year", "sex", "county", "cancer_type", "Age-Adjusted Lung Cancer (per 100,000 population) ", " ", " ", " ", " ")
+lung_cancer <- subset(lung_cancer, sex %in% c("全"))
+lung_cancer <- subset(lung_cancer, cancer_type %in% c("肺、支氣管及氣管"))
 keep.cols <- names(lung_cancer) %in% c(" .1", " .2", " .3", " ", "sex", "cancer_type") # nolint
 lung_cancer <- lung_cancer[!keep.cols]
 
-temp1 <- merge(factory_density, ozone, by = c(1, 2), all=TRUE)
-temp2 <- merge(temp1, lung_cancer, by = c(1, 2), all=TRUE)
-temp2 <- subset(temp2, year >= 2009)
-temp2 <- subset(temp2, year < 2019)
+# Air Pollutants
+pm <- gather(read.csv("~/Documents/GitHub/School/bio_ia_air/DATA/raw_data/pm.csv"), "county/city", "Particulate Matter Concentration (1.0×10^-9 kg/m-3)", -year)
+so2 <- gather(read.csv("~/Documents/GitHub/School/bio_ia_air/DATA/raw_data/SO2.csv"), "county/city", "so2", -year)
+no2 <- gather(read.csv("~/Documents/GitHub/School/bio_ia_air/DATA/raw_data/NO2.csv"), "county/city", "no2", -year)
+co <- gather(read.csv("~/Documents/GitHub/School/bio_ia_air/DATA/raw_data/CO.csv"), "county/city", "co", -year)
+
+# Densities
+urban_density <- gather(read.csv("~/Documents/GitHub/School/bio_ia_air/DATA/raw_data/urban_density.csv"), "county/city", "urban_density", -year)
+hospital_bed <- gather(read.csv("~/Documents/GitHub/School/bio_ia_air/DATA/raw_data/hospital_bed.csv"), "county/city", "hospital_bed", -year)
+age65 <- gather(read.csv("~/Documents/GitHub/School/bio_ia_air/DATA/raw_data/age65.csv"), "county/city", "age65", -year)
+
+
+lung_cancer <- lung_cancer %>% 
+  mutate(county=str_replace(county,"台", "臺"))
+
+temp1 <- merge(ozone, lung_cancer, by = c(1, 2), all=TRUE)
+temp2 <- subset(temp1, year >= 2010)
+temp2 <- subset(temp2, year <= 2019)
 temp2 <- subset(temp2, !(`county/city` %in% c("澎湖縣", "金門縣", "連江縣", "全國", "臺灣地區", "總計")))
 
 temp2 %>% summarise_all(funs(class))
-temp2$`Factory Density (Factory Count Per Squared Kilometer)` <- as.numeric(temp2$`Factory Density (Factory Count Per Squared Kilometer)`)
+# temp2$`Factory Density (Factory Count Per Squared Kilometer)` <- as.numeric(temp2$`Factory Density (Factory Count Per Squared Kilometer)`)
 temp2$`Annual Average Ozone Concentration (ppb)` <- as.numeric(temp2$`Annual Average Ozone Concentration (ppb)`)
+# temp2$so2 <- as.numeric(temp2$so2)
 temp2 %>% summarise_all(funs(class))
 
 library(imputeTS)
