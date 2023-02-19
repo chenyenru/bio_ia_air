@@ -1,45 +1,26 @@
 library(tidyverse)
 library(Hmisc)
 library(ggplot2)
+library(ggbreak) 
+library(patchwork)
+library(gplots)
 library(GGally)
 library(dplyr)
 library(ggpubr)
 library(EnvStats)
 library(plm) # Panel data analysis library
 library(lmtest) # For hetoroskedasticity analysis
+library(Rmisc)
 
 
-# dataset = read.csv("DATA/data.csv")
-# colnames(dataset) <- c("x", "year", "location", "ann_avg_ozone", "age_adj_lung")
-# dataset$location <- str_replace(dataset$location, "南投縣", "Nantou County")
-# dataset$location <- str_replace(dataset$location, "嘉義市", "Chiayi City")
-# dataset$location <- str_replace(dataset$location, "嘉義縣", "Chiayi County")
-# dataset$location <- str_replace(dataset$location, "基隆市", "Keelung County")
-# dataset$location <- str_replace(dataset$location, "宜蘭縣", "Yilan County")
-# dataset$location <- str_replace(dataset$location, "屏東縣", "Pingtung County")
-# dataset$location <- str_replace(dataset$location, "彰化縣", "Changhua County")
-# dataset$location <- str_replace(dataset$location, "新北市", "New Taipei City")
-# dataset$location <- str_replace(dataset$location, "新竹市", "Hsinchu City")
-# dataset$location <- str_replace(dataset$location, "新竹縣", "Hsinchu County")
-# dataset$location <- str_replace(dataset$location, "桃園市", "Taoyuan City")
-# dataset$location <- str_replace(dataset$location, "臺中市", "Taichung City")
-# dataset$location <- str_replace(dataset$location, "臺北市", "Taipei City")
-# dataset$location <- str_replace(dataset$location, "臺南市", "Tainang City")
-# dataset$location <- str_replace(dataset$location, "花蓮縣", "Hualien County")
-# dataset$location <- str_replace(dataset$location, "臺東縣", "Taitung County")
-# dataset$location <- str_replace(dataset$location, "苗栗縣", "Miaoli County")
-# dataset$location <- str_replace(dataset$location, "雲林縣", "Yunlin County")
-# dataset$location <- str_replace(dataset$location, "高雄市", "Kaohsiung City")
-# write.csv(dataset, "~/Documents/GitHub/School/bio_ia_air/DATA/data.csv")
+dataset = read.csv("DATA/data.csv")
 
-
-
-
-
+unique(dataset$location)
 
 pdf <- pdata.frame(dataset, c("location", "year"))
 
-model <- (age_adj_lung ~ ann_avg_ozone + factory_density)
+model <- (age_adj_lung ~ ann_avg_ozone)
+# model <- (age_adj_lung ~ ann_avg_ozone + factory_density)
 # model <- (age_adj_lung ~ ann_avg_ozone + urban_density + hospital_bed)
 random <- plm(model, data = pdf, model = "random")
 summary(random)
@@ -51,23 +32,101 @@ par(las=2,                        # use perpendicular axis labels
     mar=c(10.1,10.1,6.1,2.1),      # create enough space for long x labels
     mgp=c(7.5,1,0)                  # move x axis legend down to avoid overlap
 )
-plotmeans(age_adj_lung ~ location, 
-          main="Mean Age-Adjusted Lung Cancer Incidence Rate's\n Heterogeneity Across Taiwan's City/County", 
-          ylab="Mean Age-Adjusted Lung Cancer Incidence Rate\n (Death Counts per 100,000 People) from 2011 to 2020", 
-          data=dataset, 
-          xlab="City/County")
 
-plotmeans(age_adj_lung ~ year,
-          main="Heterogeneity across years", 
-          data=dataset,
-          xlab="Year",
-          ylab ="Mean Age-Adjusted Lung Cancer Incidence Rate (Death Counts per 100,000 People)")
+dataset_gathered <- gather(dataset, "variables", "values", 5:6)
 
-plotmeans(ann_avg_ozone ~ location,
-          main="Mean Annual Average Ozone Concentration's\n Heterogeneity Across Taiwan's City/County", 
-          data=dataset,
-          xlab="Year",
-          ylab ="Mean Annual Average Ozone Concentration from 2011 to 2020 (ppb)")
+
+data_summary <- function(data, varname, groupnames){
+  require(plyr)
+  summary_func <- function(x, col){
+    c(mean = mean(x[[col]], na.rm=TRUE),
+      sd = sd(x[[col]], na.rm=TRUE))
+  }
+  data_sum<-ddply(data, groupnames, .fun=summary_func,
+                  varname)
+  data_sum <- rename(data_sum, c("mean" = varname))
+  return(data_sum)
+}
+
+df2 <- data_summary(dataset_gathered, varname="values", 
+                    groupnames=c("variables", "location"))
+df2$location=as.factor(df2$location)
+
+# Default bar plot
+p<- ggplot(df2, aes(x=location, y=values, fill=variables)) + 
+  scale_x_discrete(guide = guide_axis(angle = 90))+
+  labs(title="Mean Age-Adjusted Lung Cancer Incidence Rate and Annual Ozone Concentration 's\n Heterogeneities Across Taiwan's City/County", 
+       x="City/County")+
+  scale_y_continuous(
+    
+    # Features of the first axis
+    name = "Mean Age-Adjusted\nLung Cancer Incidence Rate\n(Death Counts per 100,000 People)",
+    
+    # Add a second axis and specify its features
+    sec.axis = sec_axis(~.*1, name="Mean Annual Average Ozone Concentration (ppb)")
+  )+
+  guides(color = guide_legend(title = "Variables"))+
+  geom_bar(stat="identity", color="black", 
+           position=position_dodge()) +
+  geom_errorbar(aes(ymin=values-sd, ymax=values+sd), width=.2,
+                position=position_dodge(.9)) + 
+  theme_classic() +
+  theme(plot.title = element_text(hjust = 0.5, size=20), 
+        axis.text.x = element_text(size=16),
+        axis.title = element_text(size=17),
+        legend.title = element_text(size=16),
+        legend.text = element_text(size=14),
+        axis.text = element_text(size=13))+
+  scale_fill_manual(name = "Variables", labels = c("Age-Adjusted\nLung Cancer\nIncidence Rate", "Annual\nAverage\nOzone Level"),
+                      values=c("#CCCCCC","#FFFFFF"))
+
+p+scale_y_break(c(5, 23))
+
+
+
+
+
+
+
+
+# ggplot(dataset_gathered, aes(fill=categories, y=values, x=location)) + 
+#   geom_bar(position="dodge", stat="identity")
+# 
+# 
+# ggplot()+
+#   geom_bar(data=dataset_summarized1, aes(x=location, y=age_adj_lung), stat='identity')+
+#   geom_bar(data=dataset_summarized2, aes(x=location, y=ann_avg_ozone), stat='identity')
+# 
+# ggplot(dataset_summarized1, aes(x=location, y=age_adj_lung)) + 
+#   geom_bar(position="dodge", stat="identity") +
+#   geom_errorbar(aes(ymin=age_adj_lung-se, ymax=age_adj_lung+se),
+#                 width=.2,                    # Width of the error bars
+#                 position=position_dodge(.9))+
+#   xlab("City/County") + 
+#   ylab("Age-Adjusted Lung Cancer Incidence Rate (Deaths/100,000 People)")
+# 
+# ggplot(dataset_summarized2, aes(x=location, y=ann_avg_ozone)) + 
+#   geom_bar(position="dodge", stat="identity") +
+#   geom_errorbar(aes(ymin=ann_avg_ozone-se, ymax=ann_avg_ozone+se),
+#                 width=.2,                    # Width of the error bars
+#                 position=position_dodge(.9))+
+#   xlab("City/County") + 
+#   ylab("Mean Annual Average Ozone Concentration (ppb)")
+# plotmeans(age_adj_lung ~ location, 
+#           main="Mean Age-Adjusted Lung Cancer Incidence Rate's\n Heterogeneity Across Taiwan's City/County", 
+#           ylab="Mean Age-Adjusted Lung Cancer Incidence Rate\n (Death Counts per 100,000 People) from 2011 to 2020", 
+#           data=dataset, 
+#           xlab="City/County")
+# plotmeans(age_adj_lung ~ year,
+#           main="Heterogeneity across years", 
+#           data=dataset,
+#           xlab="Year",
+#           ylab ="Mean Age-Adjusted Lung Cancer Incidence Rate (Death Counts per 100,000 People)")
+# plotmeans(ann_avg_ozone ~ location,
+#           main="Mean Annual Average Ozone Concentration's\n Heterogeneity Across Taiwan's City/County", 
+#           data=dataset,
+#           xlab="Year",
+#           ylab ="Mean Annual Average Ozone Concentration from 2011 to 2020 (ppb)")
 
 library(foreign)
 fixed.dum <- lm(age_adj_lung~ann_avg_ozone + factor(location), data = dataset)
@@ -118,7 +177,7 @@ legend("topleft", legend = "Regression Line when City/County is not considered",
 par(xpd=TRUE)
 legend(title = "Locations", "bottomright", legend=unique(dataset$location), pch = seq_len(length(unique(dataset$location))), pt.cex=0.7, cex=0.7, col = seq_len(length(unique(dataset$location))), 
        ncol = 2,
-       inset=c(-0.57,0)) 
+       inset=c(-0.48,0)) 
 
 ggplot(dataset, aes(x = ann_avg_ozone, y = age_adj_lung, color = location)) +
   geom_point()
@@ -128,21 +187,33 @@ ggplot(dataset, aes(x = ann_avg_ozone, y = age_adj_lung, color = location)) +
 ggplot(data=dataset, aes(x=ann_avg_ozone, y=age_adj_lung, group=1)) +
   geom_point() +
   geom_smooth(method="lm", se = TRUE) +
-  stat_cor(label.y = 52) +
-  stat_regline_equation(label.y = 50) +
+  stat_cor(label.y = 52, size = 7) +
+  stat_regline_equation(label.y = 50, size = 7) +
   xlab("Annual Average Ozone Concentration (ppb)") + 
-  ylab("Age-Adjusted Lung Cancer Incidence Rate (Deaths/100,000 People)") +
+  ylab("Age-Adjusted Lung Cancer Incidence Rate (New Cases/100,000 People)") +
   labs(
-    title = "Annual Average Ozone Concentration (ppb) vs. \n Age-Adjusted Lung Cancer Incidence Rate (Deaths/100,000 People)",
+    title = "Annual Average Ozone Concentration (ppb) vs.\nAge-Adjusted Lung Cancer Incidence Rate (New Cases/100,000 People)",
     caption = "Source: Taiwan Environmental Protection Agency"
   )+ 
-  theme(
-    axis.title = element_text(size=13),
-    axis.text = element_text(size=11),
-    plot.title = element_text(color = "#0099f9", size = 16, face = "bold", hjust = 0.5),
-    plot.subtitle = element_text(size = 13, face = "bold", hjust = 0.5),
-    plot.caption = element_text(face = "italic", hjust = 0)
-  )
+  theme_classic() +
+  theme(plot.title = element_text(hjust = 0.5, size=20), 
+        axis.text.x = element_text(size=16),
+        axis.title = element_text(size=17),
+        legend.title = element_text(size=16),
+        legend.text = element_text(size=14),
+        plot.caption = element_text(face = "italic", hjust = 0, size=15),
+        axis.text = element_text(size=13))+
+  scale_fill_manual(name = "Variables", labels = c("Age-Adjusted\nLung Cancer\nIncidence Rate", "Annual\nAverage\nOzone Level"),
+                    values=c("#CCCCCC","#FFFFFF"))
+
+  # theme(
+  #   # axis.title = element_text(size=13),
+  #   # axis.text = element_text(size=11),
+  #   # plot.title = element_text(color = "#0099f9", size = 16, face = "bold", hjust = 0.5),
+  #   # plot.subtitle = element_text(size = 13, face = "bold", hjust = 0.5),
+  #   plot.title = element_text(hjust = 0.5, size=20),
+  #   plot.caption = element_text(face = "italic", hjust = 0)
+  # )
 
 # Trying to find confounding variable
 ggplot(data=dataset, aes(x=pm, y=age_adj_lung, group=1)) +
