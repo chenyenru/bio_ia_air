@@ -153,10 +153,10 @@ par(mar=c(5.1, 5.1, 4.1, 15.7))
 scatterplot(dataset$age_adj_lung~dataset$ann_avg_ozone|dataset$location, 
             boxplots=FALSE, 
             xlab="Annual Average Ozone Concentration (ppb)", 
-            ylab="Age-Adjusted Lung Cancer Incidence Rate (Deaths/100,000 People)",
+            ylab="Age-Adjusted Lung Cancer Incidence Rate (New Cases/100,000 People)",
             smooth=FALSE, regLine=FALSE,
-            main="Annual Average Ozone Concentration (ppb) vs. \n Age-Adjusted Lung Cancer Incidence Rate (Death Counts/100,000 People)",
-            legend =T, grid=F)
+            main="Annual Average Ozone Concentration (ppb) vs. \n Age-Adjusted Lung Cancer Incidence Rate (New Cases/100,000 People)",
+            legend =F, grid=F)
 
 legend(title = "Locations", "bottomright", legend=unique(dataset$location), pch = seq_len(length(unique(dataset$location))), pt.cex=0.7, cex=0.7, col = seq_len(length(unique(dataset$location))), 
        ncol = 2,
